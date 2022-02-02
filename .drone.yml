@@ -1,0 +1,39 @@
+---
+kind: pipeline
+type: docker
+name: sync-images
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: build
+    image: docker:dind
+    environment:
+      USER:
+        from_secret:
+          REGISTRY_USER
+      TOKEN:
+        from_secret:
+          REGISTRY_TOKEN
+    pull: always
+    commands:
+      - docker login -p $REGISTRY_TOKEN -u $REGISTRY_USER registry.sighup.io
+      - apk add --no-cache wget
+      - wget -q https://github.com/mikefarah/yq/releases/download/v4.2.1/yq_linux_amd64 -O /usr/bin/yq
+      - chmod +x /usr/bin/yq
+      - ./sync.sh
+    volumes:
+      - name: dockersock
+        path: /var/run/docker.sock
+    when:
+      event:
+      - push
+      branch:
+      - drone_migr
+
+volumes:
+- name: dockersock
+  host:
+    path: /var/run/docker.sock
